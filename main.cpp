@@ -3,6 +3,11 @@
 #include <fmt/format.h>
 #include <map>
 #include <chrono>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/mman.h>
+#include <omp.h>
+#include <fcntl.h>
 
 using namespace std;
 using namespace H5;
@@ -11,6 +16,7 @@ map<string, DataSet> dataSets;
 vector<float> cache;
 int dimensions;
 int width, height, depth, stokes;
+unsigned char* filePtr;
 
 float calculateMean(vector<float>& data) {
 	int N = data.size();
@@ -25,8 +31,28 @@ float calculateMean(vector<float>& data) {
 	return dataCount > 0 ? total / dataCount : NAN;
 }
 
+size_t getFilesize(const char* filename) {
+	struct stat st;
+	stat(filename, &st);
+	return st.st_size;
+}
+
 void printResult(float val) {
 	fmt::print("Result: {:.2f}; ", val);
+}
+
+unsigned char* mapFile(string filename) {
+	size_t filesize = getFilesize(filename.c_str());
+	int fd = open(filename.c_str(), O_RDONLY, 0);
+	if (fd == -1) {
+		return nullptr;
+	}
+	return (unsigned char*) mmap(nullptr, filesize, PROT_READ, MAP_PRIVATE, fd, 0);
+}
+
+void unmapFile(string filename, void* ptr) {
+	size_t filesize = getFilesize(filename.c_str());
+	munmap(ptr, filesize);
 }
 
 void trialXY() {
@@ -50,6 +76,21 @@ void trialXY() {
 	auto sliceDataSpace = dataSets["main"].getSpace();
 	sliceDataSpace.selectHyperslab(H5S_SELECT_SET, count.data(), start.data());
 	dataSets["main"].read(cache.data(), PredType::NATIVE_FLOAT, memspace, sliceDataSpace);
+	float mean = calculateMean(cache);
+	auto tEnd = std::chrono::high_resolution_clock::now();
+	auto dtXY = std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count();
+	printResult(mean);
+	fmt::print("Ran XY-Image trial (z={}) in {:.2f} ms\n", z, dtXY * 1.0e-3);
+}
+
+void trialXYMmap() {
+// XY-Image reads
+	auto tStart = std::chrono::high_resolution_clock::now();
+	int z = ((float) rand()) / RAND_MAX * depth;
+	auto sliceSizeBytes = width * height * sizeof(float);
+	auto offset = dataSets["main"].getOffset() + z * sliceSizeBytes;
+	cache.resize(width * height);
+	memcpy(cache.data(), filePtr + offset, sliceSizeBytes);
 	float mean = calculateMean(cache);
 	auto tEnd = std::chrono::high_resolution_clock::now();
 	auto dtXY = std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count();
@@ -138,6 +179,31 @@ void trialZ() {
 	auto sliceDataSpace = dataSets["main"].getSpace();
 	sliceDataSpace.selectHyperslab(H5S_SELECT_SET, count.data(), start.data());
 	dataSets["main"].read(cache.data(), PredType::NATIVE_FLOAT, memspace, sliceDataSpace);
+	float mean = calculateMean(cache);
+	auto tEnd = std::chrono::high_resolution_clock::now();
+	auto dtZ = std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count();
+	printResult(mean);
+	fmt::print("Ran Z-Profile trial ({},{}) in {:.2f} ms.\n", x, y, dtZ * 1.0e-3, mean);
+}
+
+void trialZMmap() {
+	omp_set_num_threads(8);
+	// Z-Profile reads
+	auto tStart = std::chrono::high_resolution_clock::now();
+	int x = ((float) rand()) / RAND_MAX * width;
+	int y = ((float) rand()) / RAND_MAX * height;
+
+	auto sliceSizeBytes = width * height * sizeof(float);
+	auto dataSetOffset = dataSets["main"].getOffset();
+	auto pixelOffset = (y * width + x) * sizeof(float);
+	cache.resize(depth);
+
+#pragma omp parallel for
+	for (auto i = 0; i < depth; i++) {
+		auto planeOffset = dataSetOffset + i * sliceSizeBytes;
+		auto offset = planeOffset + pixelOffset;
+		memcpy(cache.data() + i, filePtr + offset, sizeof(float));
+	}
 	float mean = calculateMean(cache);
 	auto tEnd = std::chrono::high_resolution_clock::now();
 	auto dtZ = std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count();
@@ -339,8 +405,8 @@ int main(int argc, char* argv[]) {
 
 	int mipLevel = 8;
 
-	string filename = "/home/angus/cubes_hdf5/DEEP_2_I_cube.hdf5";
-	// string filename = "/home/angus/cubes_hdf5/GALFACTS_N4_0263_4023_10chanavg_I.hdf5";
+	// string filename = "/home/angus/cubes_hdf5/DEEP_2_I_cube.hdf5";
+	string filename = "/home/angus/cubes_hdf5/GALFACTS_N4_0263_4023_10chanavg_I.hdf5";
 	auto file = H5File(filename, H5F_ACC_RDONLY);
 	auto hduGroup = file.openGroup("0");
 	dataSets["main"] = hduGroup.openDataSet("DATA");
@@ -361,12 +427,17 @@ int main(int argc, char* argv[]) {
 	}
 
 	srand(time(nullptr));
-	//srand(0);
 
 	if (argc != 2) {
 		return 1;
 	}
+
 	int val = atoi(argv[1]);
+
+	// Memory map for trials that require it
+	if (val >= 13) {
+		filePtr = mapFile(filename);
+	}
 
 	switch (val) {
 		case 0: trialXY();
@@ -395,8 +466,17 @@ int main(int argc, char* argv[]) {
 			break;
 		case 12: trialReadMip(mipLevel);
 			break;
+		case 13: trialXYMmap();
+			break;
+		case 14: trialZMmap();
+			break;
 		default:break;
 	}
+
+	if (val >= 13) {
+		unmapFile(filename, filePtr);
+	}
+
 	file.close();
 	return 0;
 }
