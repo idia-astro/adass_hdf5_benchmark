@@ -8,6 +8,7 @@
 #include <sys/mman.h>
 #include <omp.h>
 #include <fcntl.h>
+#include <fstream>
 
 using namespace std;
 using namespace H5;
@@ -17,6 +18,7 @@ vector<float> cache;
 int dimensions;
 int width, height, depth, stokes;
 unsigned char* filePtr;
+ifstream fileStream;
 
 float calculateMean(vector<float>& data) {
 	int N = data.size();
@@ -39,6 +41,10 @@ size_t getFilesize(const char* filename) {
 
 void printResult(float val) {
 	fmt::print("Result: {:.2f}; ", val);
+}
+
+ifstream openFile(string filename) {
+	return ifstream(filename, ios::binary);
 }
 
 unsigned char* mapFile(string filename) {
@@ -89,8 +95,24 @@ void trialXYMmap() {
 	int z = ((float) rand()) / RAND_MAX * depth;
 	auto sliceSizeBytes = width * height * sizeof(float);
 	auto offset = dataSets["main"].getOffset() + z * sliceSizeBytes;
+
 	cache.resize(width * height);
 	memcpy(cache.data(), filePtr + offset, sliceSizeBytes);
+	float mean = calculateMean(cache);
+	auto tEnd = std::chrono::high_resolution_clock::now();
+	auto dtXY = std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count();
+	printResult(mean);
+	fmt::print("Ran XY-Image trial (z={}) in {:.2f} ms\n", z, dtXY * 1.0e-3);
+}
+
+void trialXYRaw() {
+	auto tStart = std::chrono::high_resolution_clock::now();
+	int z = ((float) rand()) / RAND_MAX * depth;
+	auto sliceSizeBytes = width * height * sizeof(float);
+	auto offset = dataSets["main"].getOffset() + z * sliceSizeBytes;
+	cache.resize(width * height);
+	fileStream.seekg(offset);
+	fileStream.read((char*)cache.data(), sliceSizeBytes);
 	float mean = calculateMean(cache);
 	auto tEnd = std::chrono::high_resolution_clock::now();
 	auto dtXY = std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count();
@@ -406,6 +428,7 @@ int main(int argc, char* argv[]) {
 	int mipLevel = 8;
 
 	// string filename = "/home/angus/cubes_hdf5/DEEP_2_I_cube.hdf5";
+	//string filename = "/home/angus/IDIA/test_images/GALFACTS_N4_0263_4023_10chanavg_I.hdf5";
 	string filename = "/home/angus/cubes_hdf5/GALFACTS_N4_0263_4023_10chanavg_I.hdf5";
 	auto file = H5File(filename, H5F_ACC_RDONLY);
 	auto hduGroup = file.openGroup("0");
@@ -419,7 +442,7 @@ int main(int argc, char* argv[]) {
 	height = dims[dimensions - 2];
 	depth = (dimensions > 2) ? dims[dimensions - 3] : 1;
 	stokes = (dimensions > 3) ? dims[dimensions - 4] : 1;
-
+	auto offset = dataSets["main"].getOffset();
 	if (dimensions == 3) {
 		dataSets["swizzled"] = hduGroup.openDataSet("SwizzledData/ZYX");
 	} else {
@@ -434,8 +457,12 @@ int main(int argc, char* argv[]) {
 
 	int val = atoi(argv[1]);
 
-	// Memory map for trials that require it
-	if (val >= 13) {
+	// Memory map or open file for trials that require it
+	if (val >= 15) {
+		fileStream = openFile(filename);
+		fileStream.seekg(offset);
+	}
+	else if (val >= 13) {
 		filePtr = mapFile(filename);
 	}
 
@@ -470,10 +497,15 @@ int main(int argc, char* argv[]) {
 			break;
 		case 14: trialZMmap();
 			break;
+		case 15: trialXYRaw();
+			break;
 		default:break;
 	}
 
-	if (val >= 13) {
+	if (val >= 15) {
+		fileStream.close();
+	}
+	else if (val >= 13) {
 		unmapFile(filename, filePtr);
 	}
 
