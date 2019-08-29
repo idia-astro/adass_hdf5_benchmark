@@ -94,6 +94,7 @@ if __name__ == "__main__":
     
     plt.legend()
     plt.yscale("log")
+    plt.xlim(xpos[0] - 0.6, xpos[-1] + 0.6)
     
     plt.ylabel("Speed-up factor")
     plt.xlabel("Image")
@@ -103,5 +104,6 @@ if __name__ == "__main__":
     
     plt.savefig("speedup.svg")
     plt.savefig("speedup.png")
+    plt.savefig("speedup.pdf")
     
     plt.show()
