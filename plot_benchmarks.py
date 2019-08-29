@@ -39,7 +39,7 @@ if __name__ == "__main__":
         "Region L": (9, 10),
     }
 
-    # test name / image width / image depth / percentage speedup
+    # image width / test name / image depth / percentage speedup
     speedups = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
     text_output = []
     
@@ -62,34 +62,23 @@ if __name__ == "__main__":
             swizzled = swizzled_average[image]
             relative_improvement = (normal - swizzled) / normal
             times_speedup = normal / swizzled
-            #speedups[test_name][x][z] = relative_improvement
-            speedups[test_name][x][z] = times_speedup
+            speedups[x][test_name][z] = times_speedup
             text_output.append((x, y, z, test_name, normal, swizzled, relative_improvement, times_speedup))
     
     for (x, y, z, tn, nr, sw, ri, ts) in sorted(text_output):
         imgstr = "%dx%dx%d" % (x, y, z)
         print("%s %s:\tnormal mean %g;\tswizzled mean %g;\tn/s %g;\t(n-s)/n %g" % (imgstr.ljust(15),tn.ljust(8), nr, sw, ri, ts))
             
-    fig, axs = plt.subplots(3, 1, sharex=True, figsize=(5, 15))
+    fig, axs = plt.subplots(3, 1, sharex=True, figsize=(10, 10))
     
-    COLOURS = {
-        2048: "b",
-        4096: "g",
-        8192: "r",
+    STYLES = {
+        "YZ": ("r", None, -0.3),
+        "Z": ("b", None, -0.15),
+        "Region S": ("y", None, 0),
+        "Region M": ("g", None, 0.15),
+        "Region L": ("c", None, 0.3),
     }
-    
-    HATCHES = {
-        "S": "..",
-        "M": "oo",
-        "L": "OO",
-    }
-    
-    EXTRA_OFFSET = {
-        "S": 0,
-        "M": 0.1,
-        "L": 0.2,
-    }
-    
+
     depths = sorted(all_depths)
     
     def format_d(d):
@@ -97,35 +86,15 @@ if __name__ == "__main__":
             return r"$2^{%d}$" % d
         else:
             return r"$2^{%.1f}$" % d
-    
-    def plot_results(ax, test_name):
-        images = speedups[test_name]
-        for x in sorted(speedups[test_name].keys()):
-            results = speedups[test_name][x]
+        
+    for i, x in enumerate(sorted(speedups.keys())):
+        for test_name, results in speedups[x].items():
             d, s = zip(*sorted(results.items()))
-            if "Region" in test_name:
-                rsize = test_name[-1]
-                label = "%d (%s)" % (x, rsize)
-                ax.set_title("Region")
-                hatch = HATCHES[rsize]
-                width = 0.1
-                x_offset = (np.log2(x) - 12) * 0.3 + EXTRA_OFFSET[rsize]
-            else:
-                label = x
-                ax.set_title(test_name)
-                hatch = None
-                width = 0.3
-                x_offset = (np.log2(x) - 12) * 0.3
-                
-            ax.bar(np.log2(d) + x_offset, s, color=COLOURS[x], hatch=hatch, edgecolor="w", label=label, width=width)
-            ax.legend()
-            
-    
-    plot_results(axs[0], "Z")
-    plot_results(axs[1], "YZ")
-    plot_results(axs[2], "Region S")
-    plot_results(axs[2], "Region M")
-    plot_results(axs[2], "Region L")
+            colour, hatch, offset = STYLES[test_name]
+            axs[i].bar(np.log2(d) + offset, s, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.15)
+            axs[i].legend()
+            axs[i].set_yscale("log")
+            axs[i].set_title("%dx%d image" % (x, x))
             
     axs[1].set_ylabel("Speed-up factor")
     axs[2].set_xlabel("Image depth")
