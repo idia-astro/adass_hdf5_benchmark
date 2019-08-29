@@ -1,18 +1,17 @@
 #!/bin/bash
 
-filename=$1
-repeat=$2
+filenames=$@
 
-run_benchmark () {
-    for ((i=1;i<=repeat;i++))
-    do
-        sync; sudo sh -c 'echo 1 > /proc/sys/vm/drop_caches'
-        sleep 2
-        ./cmake-build-release/adass_hdf5_benchmark $filename $1
-    done
-}
-
-for opt in {1..10}
+for i in {0..9}
 do
-    run_benchmark $opt
+    for b in {1..10}
+    do
+        for x in $filenames
+        do
+
+            sync; sudo sh -c 'echo 1 > /proc/sys/vm/drop_caches'
+            sleep 2
+            ./cmake-build-release/adass_hdf5_benchmark $x $b > ~/benchmarks/${x##*/}.benchmark$b.$i
+        done
+    done
 done
