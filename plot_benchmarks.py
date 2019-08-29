@@ -14,7 +14,6 @@ if __name__ == "__main__":
     
     # benchmark id / image dimensions tuple / speeds
     benchmarks = defaultdict(lambda: defaultdict(list))
-    all_depths = set()
     
     # assuming a particular generated image name for now
     for filename in glob.glob("%s/*benchmark*" % benchdir):
@@ -29,7 +28,6 @@ if __name__ == "__main__":
                     
         speed = float(re.search('Ran .* in (.*) ms', result).group(1))
         benchmarks[b][(x, y, z)].append(speed)
-        all_depths.add(z)
 
     TESTS = {
         "YZ": (1, 2),
@@ -39,7 +37,7 @@ if __name__ == "__main__":
         "Region L": (9, 10),
     }
 
-    # image width / test name / image depth / percentage speedup
+    # test name / image width, image depth / percentage speedup
     speedups = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
     text_output = []
     
@@ -62,15 +60,13 @@ if __name__ == "__main__":
             swizzled = swizzled_average[image]
             relative_improvement = (normal - swizzled) / normal
             times_speedup = normal / swizzled
-            speedups[x][test_name][z] = times_speedup
-            text_output.append((x, y, z, test_name, normal, swizzled, relative_improvement, times_speedup))
+            speedups[test_name][(x, z)] = times_speedup
+            #text_output.append((x, y, z, test_name, normal, swizzled, relative_improvement, times_speedup))
     
-    for (x, y, z, tn, nr, sw, ri, ts) in sorted(text_output):
-        imgstr = "%dx%dx%d" % (x, y, z)
-        print("%s %s:\tnormal mean %g;\tswizzled mean %g;\tn/s %g;\t(n-s)/n %g" % (imgstr.ljust(15),tn.ljust(8), nr, sw, ri, ts))
-            
-    fig, axs = plt.subplots(3, 1, sharex=True, figsize=(10, 10))
-    
+    #for (x, y, z, tn, nr, sw, ri, ts) in sorted(text_output):
+        #imgstr = "%dx%dx%d" % (x, y, z)
+        #print("%s %s:\tnormal mean %g;\tswizzled mean %g;\tn/s %g;\t(n-s)/n %g" % (imgstr.ljust(15),tn.ljust(8), nr, sw, ri, ts))
+
     STYLES = {
         "YZ": ("r", None, -0.3),
         "Z": ("b", None, -0.15),
@@ -78,28 +74,29 @@ if __name__ == "__main__":
         "Region M": ("g", None, 0.15),
         "Region L": ("c", None, 0.3),
     }
-
-    depths = sorted(all_depths)
     
-    def format_d(d):
+    def fmt(d):
         if int(d) == d:
             return r"$2^{%d}$" % d
         else:
             return r"$2^{%.1f}$" % d
         
-    for i, x in enumerate(sorted(speedups.keys())):
-        for test_name, results in speedups[x].items():
-            d, s = zip(*sorted(results.items()))
-            colour, hatch, offset = STYLES[test_name]
-            axs[i].bar(np.log2(d) + offset, s, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.15)
-            axs[i].legend()
-            axs[i].set_yscale("log")
-            axs[i].set_title("%dx%d image" % (x, x))
-            
-    axs[1].set_ylabel("Speed-up factor")
-    axs[2].set_xlabel("Image depth")
-    axs[2].set_xticks(np.log2(depths))
-    axs[2].set_xticklabels((format_d(d) for d in np.log2(depths)), rotation=45)
+    plt.figure(figsize=(15, 5))
+        
+    for test_name in speedups.keys():
+        xz, s = zip(*sorted(speedups[test_name].items()))
+        colour, hatch, offset = STYLES[test_name]
+        xpos = np.arange(1, len(xz) + 1)
+        plt.bar(xpos + offset, s, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.15)
+    
+    plt.legend()
+    plt.yscale("log")
+    
+    plt.ylabel("Speed-up factor")
+    plt.xlabel("Image")
+    plt.xticks(xpos)
+    plt.gca().set_xticklabels(("$%d^2 \\times %d$" % (x, z) for (x,z) in xz), rotation=30)
+    plt.tight_layout()
     
     plt.savefig("speedup.svg")
     plt.savefig("speedup.png")
