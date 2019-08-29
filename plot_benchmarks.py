@@ -68,11 +68,11 @@ if __name__ == "__main__":
         #print("%s %s:\tnormal mean %g;\tswizzled mean %g;\tn/s %g;\t(n-s)/n %g" % (imgstr.ljust(15),tn.ljust(8), nr, sw, ri, ts))
 
     STYLES = {
-        "YZ": ("r", None, -0.3),
-        "Z": ("b", None, -0.15),
+        "YZ": ("r", None, -0.32),
+        "Z": ("b", None, -0.16),
         "Region S": ("y", None, 0),
-        "Region M": ("g", None, 0.15),
-        "Region L": ("c", None, 0.3),
+        "Region M": ("g", None, 0.16),
+        "Region L": ("c", None, 0.32),
     }
     
     def fmt(d):
@@ -81,13 +81,16 @@ if __name__ == "__main__":
         else:
             return r"$2^{%.1f}$" % d
         
-    plt.figure(figsize=(15, 5))
+    plt.figure(figsize=(20, 5))
         
     for test_name in speedups.keys():
         xz, s = zip(*sorted(speedups[test_name].items()))
         colour, hatch, offset = STYLES[test_name]
         xpos = np.arange(1, len(xz) + 1)
-        plt.bar(xpos + offset, s, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.15)
+        plt.bar(xpos + offset, s, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.16)
+    
+    plt.axvline(8.5, color="grey", linestyle="--")
+    plt.axvline(14.5, color="grey", linestyle="--")
     
     plt.legend()
     plt.yscale("log")
