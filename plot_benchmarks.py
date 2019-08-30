@@ -8,9 +8,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        sys.exit("Benchmark directory must be provided.")
+    if len(sys.argv) < 3:
+        sys.exit("Benchmark directory and benchmark name must be provided.")
     benchdir = sys.argv[1]
+    benchname = sys.argv[2]
     
     # benchmark id / image dimensions tuple / speeds
     benchmarks = defaultdict(lambda: defaultdict(list))
@@ -43,7 +44,7 @@ if __name__ == "__main__":
     # image width / test name / image depth / percentage speedup
     speedups = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
     speedups_std = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
-    text = []
+    #text = []
     seen_depths = defaultdict(set)
     
     for test_name, (b_normal, b_swizzled) in TESTS.items():
@@ -71,11 +72,11 @@ if __name__ == "__main__":
             speedup_std = times_speedup * np.sqrt((n_std[img] / n_mean[img])**2 + (s_std[img] / s_mean[img])**2)
             speedups_std[x][test_name][z] = speedup_std
             
-            text.append((x, z, b_normal, test_name, times_speedup, speedup_std))
+            #text.append((x, z, b_normal, test_name, times_speedup, speedup_std))
             seen_depths[x].add(z)
     
-    for x, z, _, t, m, s in sorted(text):
-        print("%d^2 x %s %s: %g\t +- %g" % (x, str(z).ljust(4), t.ljust(8), m, s))
+    #for x, z, _, t, m, s in sorted(text):
+        #print("%d^2 x %s %s: %g\t +- %g" % (x, str(z).ljust(4), t.ljust(8), m, s))
 
     STYLES = {
         "YZ": ("tab:blue", None, -0.32),
@@ -92,7 +93,7 @@ if __name__ == "__main__":
             return r"$2^{%.1f}$" % d
         
     for x in sorted(speedups.keys()):
-        plt.figure(figsize=(5, 5))
+        plt.figure()
         
         img_speedups = speedups[x]
         img_std = speedups_std[x]
@@ -102,11 +103,12 @@ if __name__ == "__main__":
             _, std = zip(*sorted(img_std[test_name].items()))
             colour, hatch, offset = STYLES[test_name]
             xpos = np.arange(1, len(z) + 1)
-            print("%d %s:\nMEAN: %s\nSTD:  %s" % (x, test_name, ["%g" % v for v in s], ["%g" % v for v in std]))
+            #print("%d %s:\nMEAN: %s\nSTD:  %s" % (x, test_name, ["%g" % v for v in s], ["%g" % v for v in std]))
             plt.bar(xpos + offset, s, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.16, capsize=3)
         
-        if x == 2048:
-            plt.legend()
+        plt.legend()
+    
+        plt.axhline(1, color="black", linestyle=":")
         
         plt.yscale("log")
         plt.xlim(xpos[0] - 0.6, xpos[-1] + 0.6)
@@ -118,7 +120,7 @@ if __name__ == "__main__":
         plt.gca().set_xticklabels(z, rotation=30)
         plt.tight_layout()
         
-        plt.savefig("speedup_%d.png" % x)
-        plt.savefig("speedup_%d.pdf" % x)
+        plt.savefig("speedup_%d_%s.png" % (x, benchname))
+        plt.savefig("speedup_%d_%s.pdf" % (x, benchname))
         
         #plt.show()
