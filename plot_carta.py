@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 times = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
 
 TESTS = {
-    21: "Load FITS",
-    31: "Load HDF5",
+    21: "FITS",
+    31: "HDF5",
     22: "FITS animation",
     32: "HDF5 animation",
     23: "FITS animation + stats",
@@ -36,8 +36,8 @@ with open('carta_anim.tsv') as f:
         framerates[TESTS[int(test_id)]][int(x)] = float(framerate)
         
 STYLES = {
-    "Load FITS": ("tab:blue", None, -0.1),
-    "Load HDF5": ("tab:blue", "///", 0.1),
+    "FITS": ("tab:blue", None, -0.1),
+    "HDF5": ("tab:blue", "///", 0.1),
     "FITS animation": ("tab:orange", None, -0.3),
     "HDF5 animation": ("tab:orange", "///", -0.1),
     "FITS animation + stats": ("tab:green", None, 0.1),
