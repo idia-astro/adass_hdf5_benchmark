@@ -42,34 +42,45 @@ if __name__ == "__main__":
 
     # image width / test name / image depth / percentage speedup
     speedups = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
+    speedups_std = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
+    text = []
     
     for test_name, (b_normal, b_swizzled) in TESTS.items():
         if not b_normal in benchmarks or not b_swizzled in benchmarks:
             print("Skipping test %s; missing results for one benchmark." % test_name)
             continue
         
-        normal_average = {img: sum(s)/len(s) for img, s in benchmarks[b_normal].items()}
-        swizzled_average = {img: sum(s)/len(s) for img, s in benchmarks[b_swizzled].items()}
+        n_mean = {img: np.mean(s) for img, s in benchmarks[b_normal].items()}
+        n_std = {img: np.std(s) for img, s in benchmarks[b_normal].items()}
         
-        common_images = normal_average.keys() & swizzled_average.keys()
+        s_mean = {img: np.mean(s) for img, s in benchmarks[b_swizzled].items()}
+        s_std = {img: np.std(s) for img, s in benchmarks[b_swizzled].items()}
+        
+        common_images = n_mean.keys() & s_mean.keys()
         
         if not common_images:
             print("Skipping test %s; no images with both benchmarks complete." % test_name)
         
-        for image in common_images:
-            x, y, z = image
-            normal = normal_average[image]
-            swizzled = swizzled_average[image]
-            relative_improvement = (normal - swizzled) / normal
-            times_speedup = normal / swizzled
+        for img in common_images:
+            x, y, z = img
+            
+            times_speedup = n_mean[img] / s_mean[img]
             speedups[x][test_name][z] = times_speedup
+            
+            speedup_std = times_speedup * np.sqrt((n_std[img] / n_mean[img])**2 + (s_std[img] / s_mean[img])**2)
+            speedups_std[x][test_name][z] = speedup_std
+            
+            text.append((x, z, b_normal, test_name, times_speedup, speedup_std))
+    
+    for x, z, _, t, m, s in sorted(text):
+        print("%d^2 x %s %s: %g\t +- %g" % (x, str(z).ljust(4), t.ljust(8), m, s))
 
     STYLES = {
-        "YZ": ("r", None, -0.32),
-        "Z": ("b", None, -0.16),
-        "Region S": ("y", None, 0),
-        "Region M": ("g", None, 0.16),
-        "Region L": ("c", None, 0.32),
+        "YZ": ("tab:blue", None, -0.32),
+        "Z": ("tab:orange", None, -0.16),
+        "Region S": ("tab:green", None, 0),
+        "Region M": ("tab:red", None, 0.16),
+        "Region L": ("tab:purple", None, 0.32),
     }
     
     SIZES = {
@@ -88,12 +99,15 @@ if __name__ == "__main__":
         plt.figure(figsize=SIZES[x])
         
         img_speedups = speedups[x]
+        img_std = speedups_std[x]
             
         for test_name in img_speedups.keys():
             z, s = zip(*sorted(img_speedups[test_name].items()))
+            _, std = zip(*sorted(img_std[test_name].items()))
             colour, hatch, offset = STYLES[test_name]
             xpos = np.arange(1, len(z) + 1)
-            plt.bar(xpos + offset, s, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.16)
+            print("%d %s:\nMEAN: %s\nSTD:  %s" % (x, test_name, ["%g" % v for v in s], ["%g" % v for v in std]))
+            plt.bar(xpos + offset, s, yerr=std, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.16, capsize=3)
         
         if x == 2048:
             plt.legend()
