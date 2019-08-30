@@ -95,7 +95,9 @@ if __name__ == "__main__":
             xpos = np.arange(1, len(z) + 1)
             plt.bar(xpos + offset, s, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.16)
         
-        plt.legend()
+        if x == 2048:
+            plt.legend()
+        
         plt.yscale("log")
         plt.xlim(xpos[0] - 0.6, xpos[-1] + 0.6)
         
