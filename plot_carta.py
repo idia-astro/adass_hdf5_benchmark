@@ -44,8 +44,14 @@ STYLES = {
     "HDF5 animation + stats": ("tab:green", "///", 0.3),
 }
 
+WIDTHS = {
+    2048: 4.8,
+    4096: 4.2,
+    8192: 3,
+}
+
 for x in sorted(times.keys()):
-    plt.figure(figsize=(4, 4.8))
+    plt.figure(figsize=(WIDTHS[x], 4.8))
     
     img_times = times[x]
             
@@ -55,12 +61,13 @@ for x in sorted(times.keys()):
         xpos = np.arange(1, len(z) + 1) * 0.5
         plt.bar(xpos + offset, s, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.2)
     
-    plt.legend()
+    if x == 2048:
+        plt.legend()
+        plt.ylabel("Time (ms)")
     
     plt.xlim(xpos[0] - 0.3, xpos[-1] + 0.3)
     
     plt.title("$%d \\times %d$ image" % (x, x))
-    plt.ylabel("Time (ms)")
     plt.xlabel("Image depth")
     plt.xticks(xpos)
     plt.gca().set_xticklabels(z, rotation=30)

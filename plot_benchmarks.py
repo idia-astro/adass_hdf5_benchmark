@@ -86,6 +86,12 @@ if __name__ == "__main__":
         "Region L": ("tab:purple", None, 0.32),
     }
     
+    WIDTHS = {
+        2048: 4.8,
+        4096: 4.2,
+        8192: 3,
+    }
+    
     def fmt(label):
         if label in ("YZ", "Z"):
             return "$%s$" % label
@@ -93,7 +99,10 @@ if __name__ == "__main__":
         
         
     for x in sorted(speedups.keys()):
-        plt.figure()
+        if benchname == "beegfs":
+            plt.figure(figsize=(WIDTHS[x], 4.8))
+        else:
+            plt.figure()
         
         img_speedups = speedups[x]
         img_std = speedups_std[x]
@@ -106,7 +115,9 @@ if __name__ == "__main__":
             #print("%d %s:\nMEAN: %s\nSTD:  %s" % (x, test_name, ["%g" % v for v in s], ["%g" % v for v in std]))
             plt.bar(xpos + offset, s, color=colour, hatch=hatch, edgecolor="w", label=fmt(test_name), width=0.16, capsize=3)
         
-        plt.legend()
+        if benchname != "beegfs" or x == 2048:
+            plt.legend()
+            plt.ylabel("Speed-up factor")
     
         plt.axhline(1, color="black", linestyle=":")
         
@@ -114,7 +125,6 @@ if __name__ == "__main__":
         plt.xlim(xpos[0] - 0.6, xpos[-1] + 0.6)
         
         plt.title("$%d \\times %d$ image" % (x, x))
-        plt.ylabel("Speed-up factor")
         plt.xlabel("Image depth")
         plt.xticks(xpos)
         plt.gca().set_xticklabels(z, rotation=30)
