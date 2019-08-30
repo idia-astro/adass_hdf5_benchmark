@@ -45,19 +45,19 @@ STYLES = {
 }
 
 for x in sorted(times.keys()):
-    plt.figure()
+    plt.figure(figsize=(4, 4.8))
     
     img_times = times[x]
             
     for test_name in sorted(img_times.keys()):
         z, s = zip(*sorted(img_times[test_name].items()))
         colour, hatch, offset = STYLES[test_name]
-        xpos = np.arange(1, len(z) + 1)
+        xpos = np.arange(1, len(z) + 1) * 0.5
         plt.bar(xpos + offset, s, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.2)
     
     plt.legend()
     
-    plt.xlim(xpos[0] - 0.6, xpos[-1] + 0.6)
+    plt.xlim(xpos[0] - 0.3, xpos[-1] + 0.3)
     
     plt.title("$%d \\times %d$ image" % (x, x))
     plt.ylabel("Time (ms)")
