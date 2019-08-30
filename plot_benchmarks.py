@@ -86,11 +86,11 @@ if __name__ == "__main__":
         "Region L": ("tab:purple", None, 0.32),
     }
     
-    def fmt(d):
-        if int(d) == d:
-            return r"$2^{%d}$" % d
-        else:
-            return r"$2^{%.1f}$" % d
+    def fmt(label):
+        if label in ("YZ", "Z"):
+            return "$%s$" % label
+        return label
+        
         
     for x in sorted(speedups.keys()):
         plt.figure()
@@ -104,7 +104,7 @@ if __name__ == "__main__":
             colour, hatch, offset = STYLES[test_name]
             xpos = np.arange(1, len(z) + 1)
             #print("%d %s:\nMEAN: %s\nSTD:  %s" % (x, test_name, ["%g" % v for v in s], ["%g" % v for v in std]))
-            plt.bar(xpos + offset, s, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.16, capsize=3)
+            plt.bar(xpos + offset, s, color=colour, hatch=hatch, edgecolor="w", label=fmt(test_name), width=0.16, capsize=3)
         
         plt.legend()
     
