@@ -37,9 +37,8 @@ if __name__ == "__main__":
         "Region L": (9, 10),
     }
 
-    # test name / image width, image depth / percentage speedup
+    # image width / test name / image depth / percentage speedup
     speedups = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
-    text_output = []
     
     for test_name, (b_normal, b_swizzled) in TESTS.items():
         if not b_normal in benchmarks or not b_swizzled in benchmarks:
@@ -60,12 +59,7 @@ if __name__ == "__main__":
             swizzled = swizzled_average[image]
             relative_improvement = (normal - swizzled) / normal
             times_speedup = normal / swizzled
-            speedups[test_name][(x, z)] = times_speedup
-            #text_output.append((x, y, z, test_name, normal, swizzled, relative_improvement, times_speedup))
-    
-    #for (x, y, z, tn, nr, sw, ri, ts) in sorted(text_output):
-        #imgstr = "%dx%dx%d" % (x, y, z)
-        #print("%s %s:\tnormal mean %g;\tswizzled mean %g;\tn/s %g;\t(n-s)/n %g" % (imgstr.ljust(15),tn.ljust(8), nr, sw, ri, ts))
+            speedups[x][test_name][z] = times_speedup
 
     STYLES = {
         "YZ": ("r", None, -0.32),
@@ -75,35 +69,42 @@ if __name__ == "__main__":
         "Region L": ("c", None, 0.32),
     }
     
+    SIZES = {
+        2048: (9, 5),
+        4096: (7, 5),
+        8192: (5, 5),
+    }
+    
     def fmt(d):
         if int(d) == d:
             return r"$2^{%d}$" % d
         else:
             return r"$2^{%.1f}$" % d
         
-    plt.figure(figsize=(20, 5))
+    for x in sorted(speedups.keys()):
+        plt.figure(figsize=SIZES[x])
         
-    for test_name in speedups.keys():
-        xz, s = zip(*sorted(speedups[test_name].items()))
-        colour, hatch, offset = STYLES[test_name]
-        xpos = np.arange(1, len(xz) + 1)
-        plt.bar(xpos + offset, s, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.16)
-    
-    plt.axvline(8.5, color="grey", linestyle="--")
-    plt.axvline(14.5, color="grey", linestyle="--")
-    
-    plt.legend()
-    plt.yscale("log")
-    plt.xlim(xpos[0] - 0.6, xpos[-1] + 0.6)
-    
-    plt.ylabel("Speed-up factor")
-    plt.xlabel("Image")
-    plt.xticks(xpos)
-    plt.gca().set_xticklabels(("$%d^2 \\times %d$" % (x, z) for (x,z) in xz), rotation=30)
-    plt.tight_layout()
-    
-    plt.savefig("speedup.svg")
-    plt.savefig("speedup.png")
-    plt.savefig("speedup.pdf")
-    
-    plt.show()
+        img_speedups = speedups[x]
+            
+        for test_name in img_speedups.keys():
+            z, s = zip(*sorted(img_speedups[test_name].items()))
+            colour, hatch, offset = STYLES[test_name]
+            xpos = np.arange(1, len(z) + 1)
+            plt.bar(xpos + offset, s, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.16)
+        
+        plt.legend()
+        plt.yscale("log")
+        plt.xlim(xpos[0] - 0.6, xpos[-1] + 0.6)
+        
+        plt.title("$%d \\times %d$ image" % (x, x))
+        plt.ylabel("Speed-up factor")
+        plt.xlabel("Image depth")
+        plt.xticks(xpos)
+        plt.gca().set_xticklabels(z, rotation=30)
+        plt.tight_layout()
+        
+        plt.savefig("speedup_%d.svg" % x)
+        plt.savefig("speedup_%d.png" % x)
+        plt.savefig("speedup_%d.pdf" % x)
+        
+        #plt.show()
