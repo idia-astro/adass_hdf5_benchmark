@@ -44,6 +44,7 @@ if __name__ == "__main__":
     speedups = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
     speedups_std = defaultdict(lambda: defaultdict(lambda: defaultdict(float)))
     text = []
+    seen_depths = defaultdict(set)
     
     for test_name, (b_normal, b_swizzled) in TESTS.items():
         if not b_normal in benchmarks or not b_swizzled in benchmarks:
@@ -71,6 +72,7 @@ if __name__ == "__main__":
             speedups_std[x][test_name][z] = speedup_std
             
             text.append((x, z, b_normal, test_name, times_speedup, speedup_std))
+            seen_depths[x].add(z)
     
     for x, z, _, t, m, s in sorted(text):
         print("%d^2 x %s %s: %g\t +- %g" % (x, str(z).ljust(4), t.ljust(8), m, s))
@@ -83,12 +85,6 @@ if __name__ == "__main__":
         "Region L": ("tab:purple", None, 0.32),
     }
     
-    SIZES = {
-        2048: (8, 5),
-        4096: (7, 5),
-        8192: (5, 5),
-    }
-    
     def fmt(d):
         if int(d) == d:
             return r"$2^{%d}$" % d
@@ -96,7 +92,7 @@ if __name__ == "__main__":
             return r"$2^{%.1f}$" % d
         
     for x in sorted(speedups.keys()):
-        plt.figure(figsize=SIZES[x])
+        plt.figure(figsize=(5, 5))
         
         img_speedups = speedups[x]
         img_std = speedups_std[x]
@@ -107,7 +103,7 @@ if __name__ == "__main__":
             colour, hatch, offset = STYLES[test_name]
             xpos = np.arange(1, len(z) + 1)
             print("%d %s:\nMEAN: %s\nSTD:  %s" % (x, test_name, ["%g" % v for v in s], ["%g" % v for v in std]))
-            plt.bar(xpos + offset, s, yerr=std, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.16, capsize=3)
+            plt.bar(xpos + offset, s, color=colour, hatch=hatch, edgecolor="w", label=test_name, width=0.16, capsize=3)
         
         if x == 2048:
             plt.legend()
