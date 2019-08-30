@@ -117,7 +117,7 @@ if __name__ == "__main__":
         
         if benchname != "beegfs" or x == 2048:
             plt.legend()
-            plt.ylabel("Speed-up factor")
+            plt.ylabel("Speedup")
     
         plt.axhline(1, color="black", linestyle=":")
         
