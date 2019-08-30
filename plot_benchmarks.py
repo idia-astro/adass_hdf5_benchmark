@@ -19,6 +19,9 @@ if __name__ == "__main__":
     for filename in glob.glob("%s/*benchmark*" % benchdir):
         x, y, z, b = (int(i) for i in re.match(r'.*image-(\d+)-(\d+)-(\d+)\.hdf5\.benchmark(\d+)\.\d+', filename).groups())
         
+        if z == 12288:
+            continue # skip this image
+        
         with open(filename) as f:
             result = f.read().strip()
             
@@ -70,7 +73,7 @@ if __name__ == "__main__":
     }
     
     SIZES = {
-        2048: (9, 5),
+        2048: (8, 5),
         4096: (7, 5),
         8192: (5, 5),
     }
@@ -103,7 +106,6 @@ if __name__ == "__main__":
         plt.gca().set_xticklabels(z, rotation=30)
         plt.tight_layout()
         
-        plt.savefig("speedup_%d.svg" % x)
         plt.savefig("speedup_%d.png" % x)
         plt.savefig("speedup_%d.pdf" % x)
         
