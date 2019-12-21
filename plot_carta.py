@@ -66,6 +66,7 @@ for x in sorted(times.keys()):
         plt.ylabel("Time (ms)")
     
     plt.xlim(xpos[0] - 0.3, xpos[-1] + 0.3)
+    plt.ylim(top=1650) # HACK
     
     plt.title("$%d \\times %d$ image" % (x, x))
     plt.xlabel("Image depth")
