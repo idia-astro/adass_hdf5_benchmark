@@ -120,6 +120,34 @@ void trialXYRaw() {
     fmt::print("Ran XY-Image trial (z={}) in {:.2f} ms\n", z, dtXY * 1.0e-3);
 }
 
+void trialXZ() {
+    // XZ-Image reads
+    auto tStart = std::chrono::high_resolution_clock::now();
+    int y = ((float) rand()) / RAND_MAX * height;
+    // Define dimensions of hyperslab in 2D
+    vector<hsize_t> count = {depth, 1, width};
+    vector<hsize_t> start = {0, y, 0};
+
+    // Append channel (and stokes in 4D) to hyperslab dims
+    if (dimensions == 4) {
+        count.insert(count.begin(), {1});
+        start.insert(start.begin(), {0});
+    }
+
+    // Read data into memory space
+    hsize_t memDims[] = {depth, width};
+    DataSpace memspace(2, memDims);
+    cache.resize(depth * width);
+    auto sliceDataSpace = dataSets["main"].getSpace();
+    sliceDataSpace.selectHyperslab(H5S_SELECT_SET, count.data(), start.data());
+    dataSets["main"].read(cache.data(), PredType::NATIVE_FLOAT, memspace, sliceDataSpace);
+    float mean = calculateMean(cache);
+    auto tEnd = std::chrono::high_resolution_clock::now();
+    auto dtXZ = std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count();
+    printResult(mean);
+    fmt::print("Ran XZ-Image trial (y={}) in {:.2f} ms\n", y, dtXZ * 1.0e-3);
+}
+
 void trialYZ() {
     // YZ-Image reads
     auto tStart = std::chrono::high_resolution_clock::now();
@@ -460,15 +488,17 @@ int main(int argc, char* argv[]) {
     srand(time(nullptr));
 
     int val = atoi(argv[2]);
-
+    
     // Memory map or open file for trials that require it
-    if (val >= 15) {
+    if (val >= 200) {
         fileStream = openFile(filename);
         fileStream.seekg(offset);
     }
-    else if (val >= 13) {
+    else if (val >= 100) {
         filePtr = mapFile(filename);
     }
+    
+    bool badopt(false);
 
     switch (val) {
         case 0: trialXY();
@@ -497,22 +527,28 @@ int main(int argc, char* argv[]) {
             break;
         case 12: trialReadMip(mipLevel);
             break;
-        case 13: trialXYMmap();
+        case 13: trialXZ();
             break;
-        case 14: trialZMmap();
+        case 14: trialReadMip(1);
             break;
-        case 15: trialXYRaw();
+        case 100: trialXYMmap();
             break;
-        default:break;
+        case 101: trialZMmap();
+            break;
+        case 200: trialXYRaw();
+            break;
+        default: fmt::print("No such option: {}.\n", val);
+            badopt = true;
+            break;
     }
 
-    if (val >= 15) {
+    if (val >= 200) {
         fileStream.close();
     }
-    else if (val >= 13) {
+    else if (val >= 100) {
         unmapFile(filename, filePtr);
     }
 
     file.close();
-    return 0;
+    return badopt;
 }
