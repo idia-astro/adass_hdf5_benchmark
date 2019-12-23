@@ -4,7 +4,7 @@ filenames=$@
 
 for i in {0..9}
 do
-    for b in 11 12 14
+    for b in 0 14 15 16 17
     do
         for x in $filenames
         do

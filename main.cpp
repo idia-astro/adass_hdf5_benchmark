@@ -356,13 +356,29 @@ void trialRegionSwizzled(int size) {
     fmt::print("Ran {}x{}x{} Region Swizzled trial ({},{}) in {:.2f} ms.\n", size, size, depth, x, y, dtZ * 1.0e-3, mean);
 }
 
-void trialDownSample(int mip, bool meanFilter) {
+void trialDownSample(int mip, bool meanFilter, int size=0) {
     // XY-Image reads
     auto tStart = std::chrono::high_resolution_clock::now();
     int z = ((float) rand()) / RAND_MAX * depth;
+    int x, y, w, h;
+    
+    if (size) {
+        x = ((float) rand()) / RAND_MAX * width;
+        y = ((float) rand()) / RAND_MAX * height;
+        x = min(x, width - size - 1);
+        y = min(y, height - size - 1);
+        w = size;
+        h = size;
+    } else {
+        x = 0;
+        y = 0;
+        w = width;
+        h = height;
+    }
+        
     // Define dimensions of hyperslab in 2D
-    vector<hsize_t> count = {1, height, width};
-    vector<hsize_t> start = {z, 0, 0};
+    vector<hsize_t> count = {1, h, w};
+    vector<hsize_t> start = {z, y, x};
 
     // Append channel (and stokes in 4D) to hyperslab dims
     if (dimensions == 4) {
@@ -371,15 +387,15 @@ void trialDownSample(int mip, bool meanFilter) {
     }
 
     // Read data into memory space
-    hsize_t memDims[] = {height, width};
+    hsize_t memDims[] = {h, w};
     DataSpace memspace(2, memDims);
-    cache.resize(width * height);
+    cache.resize(w * h);
     auto sliceDataSpace = dataSets["main"].getSpace();
     sliceDataSpace.selectHyperslab(H5S_SELECT_SET, count.data(), start.data());
     dataSets["main"].read(cache.data(), PredType::NATIVE_FLOAT, memspace, sliceDataSpace);
 
-    size_t numRowsRegion = height / mip;
-    size_t rowLengthRegion = width / mip;
+    size_t numRowsRegion = h / mip;
+    size_t rowLengthRegion = w / mip;
     vector<float> regionData;
     regionData.resize(numRowsRegion * rowLengthRegion);
 
@@ -393,7 +409,7 @@ void trialDownSample(int mip, bool meanFilter) {
                     for (auto pixelY = 0; pixelY < mip; pixelY++) {
                         auto imageRow = j * mip + pixelY;
                         auto imageCol = i * mip + pixelX;
-                        float pixVal = cache[imageRow * width + imageCol];
+                        float pixVal = cache[imageRow * w + imageCol];
                         if (!isnan(pixVal)) {
                             pixelCount++;
                             pixelSum += pixVal;
@@ -409,7 +425,7 @@ void trialDownSample(int mip, bool meanFilter) {
             for (auto i = 0; i < rowLengthRegion; i++) {
                 auto imageRow = j * mip;
                 auto imageCol = i * mip;
-                regionData[j * rowLengthRegion + i] = cache[imageRow * width + imageCol];
+                regionData[j * rowLengthRegion + i] = cache[imageRow * w + imageCol];
             }
         }
     }
@@ -418,7 +434,11 @@ void trialDownSample(int mip, bool meanFilter) {
     auto tEnd = std::chrono::high_resolution_clock::now();
     auto dtXY = std::chrono::duration_cast<std::chrono::microseconds>(tEnd - tStart).count();
     printResult(dsMean);
-    fmt::print("Ran XY Down-sample x{} {} trial (z={}) in {:.2f} ms\n", mip, meanFilter ? "(mean)" : "(nn)", z, dtXY * 1.0e-3);
+    if (size) {
+        fmt::print("Ran XY Down-sample (region {}x{}) x{} {} trial (z={}) in {:.2f} ms\n", size, size, mip, meanFilter ? "(mean)" : "(nn)", z, dtXY * 1.0e-3);
+    } else {
+        fmt::print("Ran XY Down-sample (full) x{} {} trial (z={}) in {:.2f} ms\n", mip, meanFilter ? "(mean)" : "(nn)", z, dtXY * 1.0e-3);
+    }
 }
 
 void trialReadMip(int mip) {
@@ -475,10 +495,12 @@ int main(int argc, char* argv[]) {
     depth = (dimensions > 2) ? dims[dimensions - 3] : 1;
     stokes = (dimensions > 3) ? dims[dimensions - 4] : 1;
     auto offset = dataSets["main"].getOffset();
-    if (dimensions == 3) {
-        dataSets["swizzled"] = hduGroup.openDataSet("SwizzledData/ZYX");
-    } else {
-        dataSets["swizzled"] = hduGroup.openDataSet("SwizzledData/ZYXW");
+    if (depth > 1) {
+        if (dimensions == 3) {
+            dataSets["swizzled"] = hduGroup.openDataSet("SwizzledData/ZYX");
+        } else if (dimensions == 4) {
+            dataSets["swizzled"] = hduGroup.openDataSet("SwizzledData/ZYXW");
+        }
     }
 
     int regionSmall(ceil(sqrt(0.0001) * min(width, height)));
@@ -529,7 +551,13 @@ int main(int argc, char* argv[]) {
             break;
         case 13: trialXZ();
             break;
-        case 14: trialReadMip(1);
+        case 14: trialReadMip(32);
+            break;
+        case 15: trialDownSample(16, true, 4096);
+            break;
+        case 16: trialDownSample(8, true, 2048);
+            break;
+        case 17: trialDownSample(4, true, 1024);
             break;
         case 100: trialXYMmap();
             break;
